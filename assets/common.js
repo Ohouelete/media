@@ -23,7 +23,7 @@ function fmtNumber(n) { return Number(n || 0).toLocaleString('fr-CA'); }
 
 function textOf(html) {
   const div = document.createElement('div');
-  div.innerHTML = DOMPurify.sanitize(html || '');
+  div.innerHTML = DOMPurify.sanitize(html || '', { FORBID_TAGS: ['iframe', 'img'] });
   return div.textContent || '';
 }
 function readMinutes(html) {
@@ -87,4 +87,60 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function showError(container, message) {
   container.replaceChildren(h('div', { class: 'notice error', role: 'alert', text: message }));
+}
+
+// ---------- Nettoyage du contenu des articles ----------
+// Seules les vidéos YouTube et Vimeo sont acceptées comme contenu intégré.
+const VIDEO_SRC = /^https:\/\/(www\.youtube(-nocookie)?\.com\/embed\/|player\.vimeo\.com\/video\/)/;
+DOMPurify.addHook('uponSanitizeElement', (node, data) => {
+  if (data.tagName === 'iframe' && !VIDEO_SRC.test(node.getAttribute('src') || '')) node.remove();
+});
+function cleanHTML(html) {
+  return DOMPurify.sanitize(html || '', { ADD_TAGS: ['iframe'], ADD_ATTR: ['allowfullscreen', 'frameborder', 'allow', 'target'] });
+}
+
+// ---------- Abonnement par courriel ----------
+const NEWSLETTER_URL = SUPABASE_URL + '/functions/v1/newsletter';
+async function newsletter(action, payload, accessToken) {
+  const headers = { 'Content-Type': 'application/json', apikey: SUPABASE_KEY };
+  if (accessToken) headers.Authorization = 'Bearer ' + accessToken;
+  let r, data = {};
+  try {
+    r = await fetch(NEWSLETTER_URL, { method: 'POST', headers, body: JSON.stringify(Object.assign({ action }, payload)) });
+    data = await r.json().catch(() => ({}));
+  } catch (e) {
+    return { error: 'Connexion impossible. Vérifie ta connexion Internet et réessaie.' };
+  }
+  if (!r.ok || data.error) return { error: data.error || 'Une erreur est survenue (' + r.status + ').' };
+  return data;
+}
+
+// Bloc « Recevoir les nouveaux articles » (accueil, articles, page abonnement)
+function subscribeBox(opts) {
+  const o = opts || {};
+  const id = 'abo-' + Math.random().toString(36).slice(2, 7);
+  const input = h('input', { class: 'field', id, type: 'email', name: 'email', autocomplete: 'email', required: true, placeholder: 'ton.courriel@exemple.com', style: { flex: '1 1 240px', width: 'auto' } });
+  const trap = h('input', { type: 'text', name: 'website', tabindex: '-1', autocomplete: 'off' });
+  const msg = h('p', { class: 'meta', role: 'status', style: { margin: 0 } }, 'Un courriel à chaque nouvel article. Désabonnement en un clic.');
+  const btn = h('button', { class: 'btn', type: 'submit' }, 'Je m’abonne');
+  const form = h('form', { class: 'subscribe' + (o.dark ? ' dark' : ''), novalidate: true },
+    h('div', {},
+      h('h2', { text: o.title || 'Recevoir les nouveaux articles' }),
+      h('p', { class: 'sub-lede', text: o.lede || 'Laisse ton courriel et je t’écris quand je publie un nouveau texte. Rien d’autre.' })),
+    h('div', { class: 'sub-row' }, h('label', { for: id, class: 'sr-only', text: 'Ton adresse courriel' }), input, btn),
+    h('div', { class: 'hp', 'aria-hidden': 'true' }, trap),
+    msg);
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = input.value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { msg.className = 'meta error'; msg.textContent = 'Vérifie ton adresse courriel.'; input.focus(); return; }
+    btn.disabled = true; msg.className = 'meta'; msg.textContent = 'Envoi…';
+    const r = await newsletter('subscribe', { email, website: trap.value });
+    btn.disabled = false;
+    if (r.error) { msg.className = 'meta error'; msg.textContent = r.error; return; }
+    input.value = '';
+    msg.className = 'meta ok';
+    msg.textContent = 'Presque fini ! Ouvre le courriel que je viens de t’envoyer et clique sur « Confirmer mon abonnement ». Pense à regarder dans tes indésirables.';
+  });
+  return form;
 }

@@ -149,3 +149,27 @@ textarea.field{resize:vertical;min-height:120px;line-height:1.5}
 @keyframes sk{to{background-position:-200% 0}}
 @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;scroll-behavior:auto !important}}
 @media (max-width:640px){.row-side{flex-basis:100%;flex-direction:row;gap:12px}.hero{padding-top:36px}}
+
+/* --- Abonnement --- */
+.subscribe{display:flex;flex-direction:column;gap:14px;padding:28px;background:var(--accent-tint);border:1px solid #C4E2D3;border-radius:18px}
+.subscribe h2{margin:0;font-size:26px;line-height:1.2}
+.subscribe .sub-lede{margin:4px 0 0;color:var(--soft);font-size:17px}
+.subscribe .sub-row{display:flex;flex-wrap:wrap;gap:10px}
+.subscribe.dark{background:#20262C;border-color:#323A42;color:var(--bg)}
+.subscribe.dark .sub-lede,.subscribe.dark .meta{color:#C5CED9}
+.subscribe.dark .field{background:#161B22;border-color:#3A4554;color:var(--bg)}
+.subscribe.dark .btn{background:#7EE0B5;border-color:#7EE0B5;color:var(--ink) !important}
+.meta.ok{color:var(--accent-dark)} .subscribe.dark .meta.ok{color:#7EE0B5}
+.meta.error{color:var(--danger)} .subscribe.dark .meta.error{color:#F2A89C}
+
+/* --- Mise en forme riche des articles --- */
+.prose .ql-align-justify{text-align:justify}
+.prose .ql-indent-1{padding-left:2em}.prose .ql-indent-2{padding-left:4em}.prose .ql-indent-3{padding-left:6em}.prose .ql-indent-4{padding-left:8em}
+.prose s{text-decoration-thickness:1.5px}
+.prose iframe,.prose .ql-video{display:block;width:100%;aspect-ratio:16/9;height:auto;border:0;border-radius:12px;margin:1.4em 0;background:var(--sand2)}
+.prose hr{border:0;height:1px;background:var(--line2);margin:2.2em auto;width:40%}
+.prose table{display:block;overflow-x:auto;border-collapse:collapse;margin:1.4em 0;font-size:17px;max-width:100%}
+.prose td,.prose th{border:1px solid var(--line2);padding:8px 12px;vertical-align:top;min-width:80px}
+.prose tr:first-child td{background:var(--sand);font-weight:600}
+.prose img{height:auto}
+.prose .legende-image,.ql-editor .legende-image{margin-top:-.6em !important;text-align:center;font-size:15px;font-style:italic;color:var(--muted)}

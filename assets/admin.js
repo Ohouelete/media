@@ -5,6 +5,27 @@
   let cats = [];
   let dirty = false;
 
+  // ---------- Formats supplémentaires de l'éditeur ----------
+  const BlockEmbed = Quill.import('blots/block/embed');
+  class Divider extends BlockEmbed {}
+  Divider.blotName = 'divider'; Divider.tagName = 'hr';
+  // Légende : une classe sur la ligne (comme l'alignement), relue correctement par l'éditeur.
+  const Parchment = Quill.import('parchment');
+  const Caption = new Parchment.ClassAttributor('caption', 'legende', { scope: Parchment.Scope.BLOCK, whitelist: ['image'] });
+  // Quill 2 enregistre les vidéos comme simple lien : on garde le lecteur intégré.
+  const Video = Quill.import('formats/video');
+  class EmbedVideo extends Video { html() { return this.domNode.outerHTML; } }
+  Quill.register(EmbedVideo, true);
+  Quill.register(Divider, true);
+  Quill.register({ 'formats/caption': Caption }, true);
+  const COLORS = ['#16191D', '#1E7A54', '#1F5FAD', '#A3301F', '#8A5A00', '#6B3FA0', '#5F6670'];
+  const TOOL_TITLES = {
+    'ql-header': 'Intertitre', 'ql-bold': 'Gras', 'ql-italic': 'Italique', 'ql-underline': 'Souligné', 'ql-strike': 'Barré',
+    'ql-color': 'Couleur du texte', 'ql-align': 'Alignement', 'ql-script': 'Exposant / indice', 'ql-blockquote': 'Citation',
+    'ql-link': 'Lien', 'ql-list': 'Liste', 'ql-indent': 'Retrait', 'ql-image': 'Insérer une image', 'ql-video': 'Insérer une vidéo YouTube ou Vimeo',
+    'ql-caption': 'Transformer la ligne en légende d’image', 'ql-divider': 'Ligne de séparation', 'ql-table': 'Insérer un tableau', 'ql-clean': 'Effacer la mise en forme'
+  };
+
   // ---------- Petits outils ----------
   function toast(msg, isErr) {
     const t = h('div', { class: 'toast' + (isErr ? ' err' : ''), role: 'status', text: msg });
@@ -58,7 +79,7 @@
       if (b.dataset.tab === active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
     history.replaceState(null, '', '#' + tab + (arg ? '=' + arg : ''));
-    ({ articles: showArticles, editeur: showEditor, commentaires: showComments, categories: showCategories, mots: showWords })[tab](arg);
+    ({ articles: showArticles, editeur: showEditor, commentaires: showComments, abonnes: showSubscribers, categories: showCategories, mots: showWords })[tab](arg);
   }
   document.querySelectorAll('.side button').forEach(b => b.addEventListener('click', () => go(b.dataset.tab)));
   window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
@@ -147,7 +168,33 @@
     const dateWrap = h('div', { class: 'stack', hidden: when !== 'later' }, h('label', { for: 'e-date', text: 'Date et heure (heure de Québec)' }), fDate);
     [rNow, rLater].forEach(r => r.addEventListener('change', () => { dateWrap.hidden = !rLater.checked; dirty = true; }));
 
+    // --- Envoi aux abonnés ---
+    const subsCount = (await db.from('subscribers').select('id', { count: 'exact', head: true }).eq('status', 'confirmed')).count || 0;
+    const fSend = h('input', { type: 'checkbox', id: 'e-send', checked: !!art.send_newsletter });
+    fSend.addEventListener('change', () => { dirty = true; });
+    let sendBox;
+    if (art.newsletter_sent_at) {
+      sendBox = h('p', { class: 'hint', style: { color: 'var(--accent-dark)' } }, '✓ Envoyé à ' + plural(art.newsletter_count || 0, 'abonné', 'abonnés') + ' le ' + fmtDateTime(art.newsletter_sent_at) + '.');
+    } else if (st.cls === 'live') {
+      const b = h('button', { type: 'button', class: 'btn btn-ghost' }, 'Envoyer aux abonnés maintenant');
+      let armed = false;
+      b.addEventListener('click', async () => {
+        if (!armed) { armed = true; b.textContent = 'Confirmer l’envoi à ' + plural(subsCount, 'abonné', 'abonnés') + ' ?'; setTimeout(() => { armed = false; b.textContent = 'Envoyer aux abonnés maintenant'; }, 5000); return; }
+        b.disabled = true; b.textContent = 'Envoi…';
+        await sendNow(id);
+        go('editeur', id);
+      });
+      sendBox = h('div', { class: 'stack' }, b, h('p', { class: 'hint', text: plural(subsCount, 'abonné confirmé', 'abonnés confirmés') + '. Un article ne peut être envoyé qu’une seule fois.' }));
+    } else {
+      sendBox = h('div', { class: 'stack' },
+        h('label', { class: 'radio', for: 'e-send' }, fSend, 'Envoyer aux abonnés par courriel'),
+        h('p', { class: 'hint', text: plural(subsCount, 'abonné confirmé', 'abonnés confirmés') + '. Si l’article est programmé, le courriel part à l’heure de publication.' }));
+    }
+
     const quillBox = h('div', { id: 'quill' });
+    const imgBar = h('div', { class: 'img-bar', hidden: true, role: 'toolbar', 'aria-label': 'Taille de l’image' });
+    const tableBar = h('div', { class: 'table-bar', hidden: true, role: 'toolbar', 'aria-label': 'Modifier le tableau' });
+    const editorWrap = h('div', { class: 'editor-wrap' }, quillBox, imgBar);
     const btnPublish = h('button', { type: 'button', class: 'btn btn-accent' }, st.cls === 'draft' ? 'Publier' : 'Mettre à jour');
     const btnDraft = h('button', { type: 'button', class: 'btn btn-ghost' }, st.cls === 'draft' ? 'Enregistrer le brouillon' : 'Retirer de la publication');
     const info = h('p', { class: 'hint' },
@@ -161,7 +208,8 @@
         h('div', { class: 'editor-main' },
           h('label', { for: 'e-titre', text: 'Titre' }), fTitle,
           h('label', { for: 'e-chapo', text: 'Chapô (résumé sous le titre)' }), fLede,
-          h('label', { text: 'Contenu' }), quillBox),
+          h('label', { text: 'Contenu' }), tableBar, editorWrap,
+          h('p', { class: 'hint', text: 'Astuces : colle (Ctrl+V) ou glisse une image directement dans le texte. Clique sur une image pour changer sa taille. Pour une légende, écris-la sous l’image puis clique sur « Légende ».' })),
         h('div', { class: 'editor-side' },
           h('div', { class: 'box stack' },
             h('h2', { style: { margin: 0, fontSize: '17px' } }, 'Publication ', h('span', { class: 'pill ' + st.cls, text: st.label })),
@@ -171,6 +219,7 @@
               h('label', { class: 'radio' }, rNow, 'Maintenant'),
               h('label', { class: 'radio' }, rLater, 'Programmer une date'),
               dateWrap) : null,
+            sendBox,
             btnPublish, btnDraft,
             st.cls === 'live' ? h('a', { class: 'btn btn-ghost', href: articleUrl(art.slug), target: '_blank', rel: 'noopener' }, 'Voir l’article ↗') : null),
           h('div', { class: 'box stack' },
@@ -186,11 +235,92 @@
     const quill = new Quill(quillBox, {
       theme: 'snow',
       placeholder: 'Écris ton article ici…',
-      modules: { toolbar: { container: [[{ header: [2, 3, false] }], ['bold', 'italic', 'underline'], ['blockquote', 'link'], [{ list: 'ordered' }, { list: 'bullet' }], ['image'], ['clean']],
-        handlers: { image: () => pickInlineImage(quill) } } }
+      modules: {
+        table: true,
+        toolbar: {
+          container: [
+            [{ header: [2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ color: COLORS }],
+            [{ align: [] }],
+            [{ script: 'super' }, { script: 'sub' }],
+            ['blockquote', 'link'],
+            [{ list: 'ordered' }, { list: 'bullet' }, { indent: '-1' }, { indent: '+1' }],
+            ['image', 'video', 'caption', 'divider', 'table'],
+            ['clean']
+          ],
+          handlers: {
+            image: () => pickInlineImage(quill),
+            divider: () => { const r = quill.getSelection(true); quill.insertEmbed(r.index, 'divider', true, 'user'); quill.setSelection(r.index + 1, 0, 'user'); },
+            caption: () => { const f = quill.getFormat(); quill.format('caption', f.caption ? false : 'image', 'user'); },
+            table: () => { quill.getModule('table').insertTable(3, 3); }
+          }
+        },
+        uploader: {
+          mimetypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp'],
+          handler: async (range, files) => {
+            let index = range.index;
+            for (const f of files) {
+              toast('Envoi de l’image…');
+              const url = await uploadImage(f);
+              if (url) { quill.insertEmbed(index, 'image', url, 'user'); index += 1; }
+            }
+            quill.setSelection(index, 0, 'user');
+          }
+        }
+      }
     });
-    if (art.content) quill.clipboard.dangerouslyPasteHTML(DOMPurify.sanitize(art.content));
-    quill.on('text-change', () => { dirty = true; });
+    // Libellés et infobulles en français pour la barre d'outils
+    const tb = quill.getModule('toolbar').container;
+    tb.querySelectorAll('button, .ql-picker').forEach(el => {
+      const cls = [...el.classList].find(c => TOOL_TITLES[c]);
+      if (!cls) return;
+      let t = TOOL_TITLES[cls];
+      if (cls === 'ql-script') t = el.value === 'sub' ? 'Indice' : 'Exposant';
+      if (cls === 'ql-list') t = el.value === 'ordered' ? 'Liste numérotée' : 'Liste à puces';
+      if (cls === 'ql-indent') t = el.value === '-1' ? 'Diminuer le retrait' : 'Augmenter le retrait';
+      el.setAttribute('title', t);
+      if (el.tagName === 'BUTTON') el.setAttribute('aria-label', t);
+    });
+    tb.querySelector('.ql-caption').textContent = 'Légende';
+    tb.querySelector('.ql-divider').textContent = '―';
+    tb.querySelector('.ql-table').textContent = 'Tableau';
+
+    if (art.content) quill.clipboard.dangerouslyPasteHTML(cleanHTML(art.content));
+    quill.on('text-change', () => { dirty = true; imgBar.hidden = true; });
+
+    // --- Taille des images : clic sur une image ---
+    let currentImg = null;
+    const sizes = [['Petite', '35%'], ['Moyenne', '60%'], ['Pleine largeur', '100%']];
+    imgBar.append(...sizes.map(([label, w]) => h('button', { type: 'button', class: 'btn btn-sm btn-ghost', onclick: () => {
+      if (!currentImg) return;
+      const blot = Quill.find(currentImg);
+      if (!blot) return;
+      quill.formatText(quill.getIndex(blot), 1, 'width', w === '100%' ? false : w, 'user');
+      imgBar.hidden = true;
+    } }, label)));
+    quill.root.addEventListener('click', (e) => {
+      if (e.target.tagName === 'IMG') {
+        currentImg = e.target;
+        imgBar.hidden = false;
+        imgBar.style.top = (e.target.offsetTop + 8) + 'px';
+      } else { imgBar.hidden = true; currentImg = null; }
+    });
+
+    // --- Tableau : actions quand le curseur est dans un tableau ---
+    const tableModule = quill.getModule('table');
+    const tActions = [
+      ['+ Ligne', () => tableModule.insertRowBelow()], ['+ Colonne', () => tableModule.insertColumnRight()],
+      ['− Ligne', () => tableModule.deleteRow()], ['− Colonne', () => tableModule.deleteColumn()],
+      ['Supprimer le tableau', () => tableModule.deleteTable()]
+    ];
+    tableBar.append(h('span', { class: 'hint', text: 'Tableau :' }), ...tActions.map(([label, fn]) => h('button', { type: 'button', class: 'btn btn-sm btn-ghost', onclick: () => { fn(); dirty = true; } }, label)));
+    quill.on('editor-change', () => {
+      const r = quill.getSelection();
+      let inTable = false;
+      if (r) { try { inTable = !!tableModule.getTable(r)[0]; } catch (e) { inTable = false; } }
+      tableBar.hidden = !inTable;
+    });
 
     fTitle.addEventListener('input', () => { dirty = true; if (!slugTouched) fSlug.value = slugify(fTitle.value); });
     fSlug.addEventListener('input', () => { slugTouched = true; dirty = true; });
@@ -203,7 +333,7 @@
         title: fTitle.value.trim(),
         slug: slugify(fSlug.value || fTitle.value),
         lede: fLede.value.trim() || null,
-        content: quill.getText().trim() ? DOMPurify.sanitize(html) : '',
+        content: quill.getText().trim() || /<(img|iframe|table|hr)/i.test(html) ? cleanHTML(html) : '',
         category_id: fCat.value ? Number(fCat.value) : null,
         tags: fTags.value.split(',').map(t => t.trim()).filter(Boolean).slice(0, 10),
         cover_url: coverUrl || null
@@ -216,6 +346,7 @@
       if (!p.slug) { toast('L’adresse de l’article est vide.', true); return; }
       if (mode !== 'draft' && !p.content) { toast('L’article est vide.', true); return; }
 
+      if (!art.newsletter_sent_at && st.cls !== 'live') p.send_newsletter = fSend.checked;
       if (mode === 'draft') { p.status = 'draft'; p.published_at = null; }
       else if (st.cls === 'live') { /* mise à jour : on garde le statut et la date */ }
       else if (rLater.checked) {
@@ -232,12 +363,50 @@
       if (error) { toast(errMsg(error), true); return; }
       dirty = false;
       toast(mode === 'draft' ? (st.cls === 'draft' ? 'Brouillon enregistré.' : 'Article retiré de la publication.') : st.cls === 'live' ? 'Article mis à jour.' : rLater.checked ? 'Publication programmée.' : 'Article publié !');
+      if (mode !== 'draft' && st.cls !== 'live' && p.send_newsletter) {
+        if (rLater.checked) toast('Le courriel aux abonnés partira à l’heure de publication.');
+        else await sendNow(data.id);
+      }
       refreshCounts();
       go('editeur', data.id);
     }
     btnPublish.addEventListener('click', () => save('publish'));
     btnDraft.addEventListener('click', () => save('draft'));
     if (!id) fTitle.focus();
+  }
+
+  async function sendNow(articleId) {
+    const { data: s } = await db.auth.getSession();
+    const r = await newsletter('send', { article_id: articleId }, s.session && s.session.access_token);
+    if (r.error) toast('Courriel aux abonnés non envoyé : ' + r.error, true);
+    else if (r.already) toast('Cet article avait déjà été envoyé.');
+    else if (r.scheduled) toast('Le courriel partira à l’heure de publication.');
+    else toast('Courriel envoyé à ' + plural(r.sent || 0, 'abonné', 'abonnés') + '.');
+  }
+
+  // ---------- Abonnés ----------
+  async function showSubscribers() {
+    panel.replaceChildren(h('h1', { text: 'Abonnés' }), h('p', { class: 'hint', text: 'Chargement…' }));
+    const { data, error } = await db.from('subscribers').select('id,email,status,created_at,confirmed_at').order('created_at', { ascending: false });
+    if (error) { panel.replaceChildren(h('h1', { text: 'Abonnés' }), h('p', { class: 'error', text: errMsg(error) })); return; }
+    const rows = data || [];
+    const n = (s) => rows.filter(r => r.status === s).length;
+    const label = { confirmed: ['live', 'Confirmé'], pending: ['sched', 'En attente'], unsubscribed: ['draft', 'Désabonné'] };
+    panel.replaceChildren(h('h1', { text: 'Abonnés' }),
+      h('div', { class: 'stats' },
+        h('div', { class: 'stat' }, h('span', { text: 'Confirmés (reçoivent les courriels)' }), h('b', { text: fmtNumber(n('confirmed')) })),
+        h('div', { class: 'stat' }, h('span', { text: 'En attente de confirmation' }), h('b', { text: fmtNumber(n('pending')) })),
+        h('div', { class: 'stat' }, h('span', { text: 'Désabonnés' }), h('b', { text: fmtNumber(n('unsubscribed')) }))),
+      rows.length ? h('div', { class: 'table-wrap' }, h('table', { style: { minWidth: '560px' } },
+        h('thead', {}, h('tr', {}, ['Courriel', 'Statut', 'Inscrit le', ''].map(t => h('th', { scope: 'col', text: t })))),
+        h('tbody', {}, rows.map(r => h('tr', {},
+          h('td', { text: r.email }),
+          h('td', {}, h('span', { class: 'pill ' + label[r.status][0], text: label[r.status][1] })),
+          h('td', { class: 'meta', text: fmtDateTime(r.created_at) }),
+          h('td', {}, confirmBtn('Retirer', async () => {
+            const { error: e } = await db.from('subscribers').delete().eq('id', r.id);
+            if (e) toast(errMsg(e), true); else { toast('Abonné retiré.'); showSubscribers(); }
+          }))))))) : h('div', { class: 'notice', text: 'Aucun abonné pour l’instant. Le formulaire est sur l’accueil, sous chaque article et sur la page « S’abonner ».' }));
   }
 
   async function uploadImage(file) {
@@ -334,7 +503,7 @@
   async function enterApp() {
     showView('app');
     refreshCounts();
-    const m = location.hash.match(/^#(articles|editeur|commentaires|categories|mots)(?:=(\d+))?/);
+    const m = location.hash.match(/^#(articles|editeur|commentaires|abonnes|categories|mots)(?:=(\d+))?/);
     go(m ? m[1] : 'articles', m && m[2] ? Number(m[2]) : undefined);
   }
 
