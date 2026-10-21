@@ -67,7 +67,7 @@
   async function showArticles() {
     panel.replaceChildren(h('h1', { text: 'Mes articles' }), h('p', { class: 'hint', text: 'Chargement…' }));
     const { data, error } = await db.from('articles')
-      .select('id,title,slug,status,published_at,created_at,views,category:categories(name),comments(count)')
+      .select('id,title,slug,status,published_at,created_at,views,category:categories(name),comment_count')
       .order('published_at', { ascending: false, nullsFirst: true }).order('created_at', { ascending: false });
     if (error) { panel.replaceChildren(h('h1', { text: 'Mes articles' }), h('p', { class: 'error', text: errMsg(error) })); return; }
     const rows = data || [];

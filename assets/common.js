@@ -57,9 +57,9 @@ function h(tag, attrs, ...children) {
   return el;
 }
 
-const ARTICLE_FIELDS = 'id,title,slug,lede,content,cover_url,tags,published_at,updated_at,views,category:categories(id,name,slug),comments(count)';
+const ARTICLE_FIELDS = 'id,title,slug,lede,content,cover_url,tags,published_at,updated_at,views,category:categories(id,name,slug),comment_count';
 
-function commentCount(a) { return (a.comments && a.comments[0] && a.comments[0].count) || 0; }
+function commentCount(a) { return a.comment_count || 0; }
 
 // Carte d'article (accueil, articles similaires)
 function articleCard(a, opts) {
