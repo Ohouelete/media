@@ -184,3 +184,6 @@ textarea.field{resize:vertical;min-height:120px;line-height:1.5}
 .share-icons a,.share-icons button{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line2);border-radius:50%;background:var(--panel);cursor:pointer;padding:0;transition:transform .15s,border-color .15s}
 .share-icons a:hover,.share-icons button:hover{transform:translateY(-2px);border-color:var(--ink)}
 .share-icons svg{width:20px;height:20px}
+.stack-sm{display:flex;flex-direction:column;gap:12px}
+.com-qui{font-size:15px;color:var(--soft)}
+.com-qui button{background:none;border:0;padding:0;font:inherit;color:var(--accent);text-decoration:underline;cursor:pointer}
