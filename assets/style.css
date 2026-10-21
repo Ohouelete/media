@@ -176,3 +176,11 @@ textarea.field{resize:vertical;min-height:120px;line-height:1.5}
 .prose tr:first-child td{background:var(--sand);font-weight:600}
 .prose img{height:auto}
 .prose .legende-image,.ql-editor .legende-image{margin-top:-.6em !important;text-align:center;font-size:15px;font-style:italic;color:var(--muted)}
+
+/* --- Partage en fin d'article --- */
+.share-end{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;padding:18px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.share-label{font-family:var(--sans);font-size:15px;font-weight:600}
+.share-icons{display:flex;flex-wrap:wrap;gap:10px}
+.share-icons a,.share-icons button{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line2);border-radius:50%;background:var(--panel);cursor:pointer;padding:0;transition:transform .15s,border-color .15s}
+.share-icons a:hover,.share-icons button:hover{transform:translateY(-2px);border-color:var(--ink)}
+.share-icons svg{width:20px;height:20px}
