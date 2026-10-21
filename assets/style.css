@@ -161,6 +161,9 @@ textarea.field{resize:vertical;min-height:120px;line-height:1.5}
 .subscribe.dark .btn{background:#7EE0B5;border-color:#7EE0B5;color:var(--ink) !important}
 .meta.ok{color:var(--accent-dark)} .subscribe.dark .meta.ok{color:#7EE0B5}
 .meta.error{color:var(--danger)} .subscribe.dark .meta.error{color:#F2A89C}
+.sub-band{background:var(--ink);padding:56px 0}
+.sub-band .subscribe.dark{max-width:760px;margin:0 auto;background:transparent;border:0;padding:0}
+.sub-band + .site-footer{border-top-color:#323A42}
 
 /* --- Mise en forme riche des articles --- */
 .prose .ql-align-justify{text-align:justify}

@@ -83,6 +83,14 @@ document.addEventListener('DOMContentLoaded', () => {
   setActiveNav();
   const y = document.getElementById('year');
   if (y) y.textContent = new Date().getFullYear();
+  // Bandeau d'abonnement en bas de page (sauf pages où il ferait doublon).
+  const page = location.pathname.split('/').pop() || 'index.html';
+  const footer = document.querySelector('.site-footer');
+  if (footer && !['abonnement.html', 'admin.html', 'article.html'].includes(page)) {
+    const band = h('section', { class: 'sub-band', 'aria-label': 'Abonnement' },
+      h('div', { class: 'wrap' }, subscribeBox({ dark: true })));
+    footer.before(band);
+  }
 });
 
 function showError(container, message) {
