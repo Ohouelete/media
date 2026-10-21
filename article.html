@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Article — Marck-Land Ahouansou</title>
+<meta name="description" content="Un article de Marck-Land Ahouansou.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2316191D'/%3E%3Ctext x='16' y='22' font-family='Georgia' font-size='17' font-weight='700' fill='%23F7F5F0' text-anchor='middle'%3EM%3C/text%3E%3Ccircle cx='25' cy='21' r='2.2' fill='%237EE0B5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="index.html"><b>Marck-Land Ahouansou</b><i aria-hidden="true"></i></a>
+    <nav class="nav" aria-label="Navigation principale">
+      <a href="index.html" data-page="index.html">Accueil</a>
+      <a href="articles.html" data-page="articles.html">Articles</a>
+      <a href="a-propos.html" data-page="a-propos.html">À propos</a>
+      <a href="https://ohouelete.github.io">Portfolio ↗</a>
+    </nav>
+  </div>
+</header>
+
+<main id="contenu">
+  <article class="narrow article" id="article">
+    <div class="skeleton" style="height:14px;width:200px"></div>
+    <div class="skeleton" style="height:110px"></div>
+    <div class="skeleton" style="height:60px"></div>
+    <div class="skeleton" style="height:300px"></div>
+  </article>
+
+  <section class="narrow comments" id="commentaires" aria-labelledby="titre-com" hidden>
+    <h2 id="titre-com">Commentaires</h2>
+    <form class="form" id="form-com" novalidate>
+      <label for="com-nom">Ton nom</label>
+      <input class="field" id="com-nom" name="nom" type="text" maxlength="60" autocomplete="name" placeholder="Prénom ou pseudonyme" required>
+      <label for="com-texte">Ton commentaire</label>
+      <textarea class="field" id="com-texte" name="texte" maxlength="3000" placeholder="Reste respectueux : les commentaires insultants seront retirés." required></textarea>
+      <div class="hp" aria-hidden="true"><label for="com-site">Ne pas remplir</label><input id="com-site" name="site" type="text" tabindex="-1" autocomplete="off"></div>
+      <div class="form-foot">
+        <small id="com-msg" role="status">Pas besoin de compte. Ton commentaire s'affiche tout de suite.</small>
+        <button class="btn" type="submit" id="com-btn">Publier le commentaire</button>
+      </div>
+    </form>
+    <div id="liste-com"></div>
+  </section>
+
+  <section class="related" id="similaires" aria-labelledby="titre-sim" hidden>
+    <div class="wrap">
+      <h2 id="titre-sim">À lire aussi</h2>
+      <div class="grid" id="grille-sim"></div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap"><span>© <span id="year">2026</span> Marck-Land Ahouansou · Québec</span><span>Les opinions exprimées ici sont personnelles.</span></div>
+</footer>
+
+<script src="assets/vendor/supabase.js"></script>
+<script src="assets/vendor/purify.min.js"></script>
+<script src="assets/common.js"></script>
+<script>
+(async function () {
+  const slug = new URLSearchParams(location.search).get('a') || '';
+  const box = document.getElementById('article');
+
+  const { data: a, error } = slug
+    ? await db.from('articles').select(ARTICLE_FIELDS).eq('slug', slug).maybeSingle()
+    : { data: null, error: null };
+
+  if (error) { showError(box, 'Impossible de charger cet article pour le moment.'); return; }
+  if (!a) {
+    box.replaceChildren(h('h1', { text: 'Article introuvable' }),
+      h('p', { class: 'lede', text: 'Ce lien ne mène à aucun article publié. Il a peut-être été retiré.' }),
+      h('div', {}, h('a', { class: 'btn', href: 'articles.html' }, 'Voir tous les articles')));
+    return;
+  }
+
+  document.title = a.title + ' — ' + SITE_NAME;
+  const desc = document.querySelector('meta[name="description"]');
+  if (desc && a.lede) desc.setAttribute('content', a.lede);
+
+  // Compteur de vues : une vue par lecteur et par article toutes les 6 heures.
+  let views = a.views;
+  try {
+    const key = 'vu:' + a.slug, last = Number(localStorage.getItem(key) || 0);
+    if (Date.now() - last > 6 * 3600 * 1000) {
+      const r = await db.rpc('increment_view', { p_slug: a.slug });
+      if (!r.error && r.data != null) views = r.data;
+      localStorage.setItem(key, String(Date.now()));
+    }
+  } catch (e) {
+    const r = await db.rpc('increment_view', { p_slug: a.slug });
+    if (!r.error && r.data != null) views = r.data;
+  }
+
+  let nbCom = commentCount(a);
+  const metaCom = h('span', { text: plural(nbCom, 'commentaire', 'commentaires') });
+  const pageUrl = location.href.split('#')[0];
+  const enc = encodeURIComponent(pageUrl), encT = encodeURIComponent(a.title);
+  const copyBtn = h('button', { type: 'button' }, 'Copier le lien');
+  copyBtn.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(pageUrl); copyBtn.textContent = 'Lien copié'; }
+    catch (e) { copyBtn.textContent = 'Copie impossible'; }
+    setTimeout(() => { copyBtn.textContent = 'Copier le lien'; }, 2500);
+  });
+
+  const body = h('div', { class: 'prose' });
+  body.innerHTML = DOMPurify.sanitize(a.content || '', { ADD_ATTR: ['target'] });
+  body.querySelectorAll('a[href^="http"]').forEach(l => { l.target = '_blank'; l.rel = 'noopener'; });
+
+  box.replaceChildren(...[
+    h('nav', { class: 'crumbs', 'aria-label': 'Fil d’Ariane' },
+      h('a', { href: 'articles.html', text: 'Articles' }),
+      a.category ? [' / ', h('a', { href: categoryUrl(a.category.slug), style: { color: 'var(--accent)' }, text: a.category.name })] : null),
+    h('h1', { text: a.title }),
+    a.lede ? h('p', { class: 'lede', text: a.lede }) : null,
+    h('div', { class: 'article-bar' },
+      h('div', { class: 'meta', style: { display: 'flex', flexDirection: 'column', gap: '2px' } },
+        h('span', {}, h('b', { text: 'Publié le ' + fmtDateTime(a.published_at) }),
+          a.updated_at ? ' · Mis à jour le ' + fmtDateTime(a.updated_at) : null),
+        h('span', {}, readMinutes(a.content) + ' min de lecture · ' + plural(views, 'vue', 'vues') + ' · ', metaCom)),
+      h('div', { class: 'share', role: 'group', 'aria-label': 'Partager' },
+        h('a', { href: 'https://www.linkedin.com/sharing/share-offsite/?url=' + enc, target: '_blank', rel: 'noopener' }, 'LinkedIn'),
+        h('a', { href: 'https://www.facebook.com/sharer/sharer.php?u=' + enc, target: '_blank', rel: 'noopener' }, 'Facebook'),
+        h('a', { href: 'https://wa.me/?text=' + encT + '%20' + enc, target: '_blank', rel: 'noopener' }, 'WhatsApp'),
+        h('a', { href: 'https://twitter.com/intent/tweet?url=' + enc + '&text=' + encT, target: '_blank', rel: 'noopener' }, 'X'),
+        copyBtn)),
+    a.cover_url ? h('img', { class: 'cover', src: a.cover_url, alt: '' }) : null,
+    body,
+    a.tags && a.tags.length ? h('div', { class: 'tags' }, a.tags.map(t => h('a', { href: 'articles.html?q=' + encodeURIComponent(t), text: t }))) : null
+
+  ].filter(Boolean));
+
+  // ----- Commentaires -----
+  const secCom = document.getElementById('commentaires');
+  const listeCom = document.getElementById('liste-com');
+  const titreCom = document.getElementById('titre-com');
+  secCom.hidden = false;
+
+  function comEl(c) {
+    return h('div', { class: 'comment' },
+      h('div', { class: 'avatar', 'aria-hidden': 'true', text: (c.author || '?').trim().charAt(0).toUpperCase() }),
+      h('div', { class: 'comment-body' },
+        h('div', { class: 'comment-head' }, h('strong', { text: c.author }), h('span', { class: 'meta', style: { fontSize: '12px' }, text: fmtDateTime(c.created_at) })),
+        h('p', { text: c.body })));
+  }
+  function setCount(n) { nbCom = n; titreCom.textContent = 'Commentaires (' + fmtNumber(n) + ')'; metaCom.textContent = plural(n, 'commentaire', 'commentaires'); }
+
+  const coms = await db.from('comments').select('id,author,body,created_at').eq('article_id', a.id).order('created_at', { ascending: false });
+  const comList = coms.data || [];
+  setCount(comList.length);
+  listeCom.replaceChildren(...(comList.length ? comList.map(comEl) : [h('p', { class: 'meta', id: 'aucun-com', text: 'Sois la première personne à commenter.' })]));
+
+  const form = document.getElementById('form-com');
+  const msg = document.getElementById('com-msg');
+  const btn = document.getElementById('com-btn');
+  try { const n = localStorage.getItem('com-nom'); if (n) form.nom.value = n; } catch (e) {}
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nom = form.nom.value.trim(), texte = form.texte.value.trim();
+    if (!nom || texte.length < 2) { msg.textContent = 'Indique ton nom et écris un commentaire.'; msg.className = 'error'; return; }
+    btn.disabled = true; msg.className = ''; msg.textContent = 'Envoi…';
+    const { data, error } = await db.rpc('add_comment', { p_slug: a.slug, p_author: nom, p_body: texte, p_website: form.site.value });
+    btn.disabled = false;
+    if (error) { msg.className = 'error'; msg.textContent = error.message || 'Le commentaire n’a pas pu être publié.'; return; }
+    try { localStorage.setItem('com-nom', nom); } catch (e2) {}
+    form.texte.value = ''; msg.textContent = 'Merci, ton commentaire est publié.';
+    if (data) {
+      document.getElementById('aucun-com')?.remove();
+      listeCom.prepend(comEl(data));
+      setCount(nbCom + 1);
+    }
+  });
+
+  // ----- Articles similaires -----
+  let sim = [];
+  if (a.category) {
+    const r = await db.from('articles').select(ARTICLE_FIELDS).eq('category_id', a.category.id).neq('id', a.id).order('published_at', { ascending: false }).limit(3);
+    sim = r.data || [];
+  }
+  if (sim.length < 3) {
+    const r = await db.from('articles').select(ARTICLE_FIELDS).neq('id', a.id).order('published_at', { ascending: false }).limit(6);
+    for (const x of (r.data || [])) if (sim.length < 3 && !sim.some(s => s.id === x.id)) sim.push(x);
+  }
+  if (sim.length) {
+    document.getElementById('grille-sim').replaceChildren(...sim.map(x => articleCard(x)));
+    document.getElementById('similaires').hidden = false;
+  }
+})();
+</script>
+</body>
+</html>

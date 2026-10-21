@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marck-Land Ahouansou — Société, politique et idées</title>
+<meta name="description" content="Les textes de Marck-Land Ahouansou : société, politique, parcours, lectures et, parfois, ce que les chiffres racontent.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Marck-Land Ahouansou">
+<meta property="og:description" content="Société, politique, parcours et idées.">
+<meta property="og:image" content="https://ohouelete.github.io/media/assets/photo.jpg">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2316191D'/%3E%3Ctext x='16' y='22' font-family='Georgia' font-size='17' font-weight='700' fill='%23F7F5F0' text-anchor='middle'%3EM%3C/text%3E%3Ccircle cx='25' cy='21' r='2.2' fill='%237EE0B5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="index.html"><b>Marck-Land Ahouansou</b><i aria-hidden="true"></i></a>
+    <nav class="nav" aria-label="Navigation principale">
+      <a href="index.html" data-page="index.html">Accueil</a>
+      <a href="articles.html" data-page="articles.html">Articles</a>
+      <a href="a-propos.html" data-page="a-propos.html">À propos</a>
+      <a href="https://ohouelete.github.io">Portfolio ↗</a>
+      <a class="icon-btn" href="articles.html#recherche" aria-label="Rechercher un article">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+      </a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section id="une" class="wrap hero" aria-label="Article à la une">
+    <div class="hero-text">
+      <div class="skeleton" style="height:16px;width:180px"></div>
+      <div class="skeleton" style="height:120px"></div>
+      <div class="skeleton" style="height:56px;width:80%"></div>
+    </div>
+  </section>
+
+  <section class="wrap" aria-labelledby="derniers-titre" style="display:flex;flex-direction:column;gap:28px;padding-bottom:72px">
+    <div class="section-head"><h2 id="derniers-titre">Derniers articles</h2><a class="sans-link" href="articles.html">Tous les articles →</a></div>
+    <div id="derniers" class="grid"></div>
+  </section>
+
+  <section class="wrap" aria-labelledby="cat-titre" style="display:flex;flex-direction:column;gap:24px">
+    <div class="section-head"><h2 id="cat-titre">Explorer par catégorie</h2></div>
+    <div id="categories" class="cats"></div>
+  </section>
+
+  <section class="about-band" aria-labelledby="qui-titre">
+    <div class="wrap">
+      <img src="assets/photo.jpg" alt="Marck-Land Ahouansou" width="120" height="120">
+      <div>
+        <h2 id="qui-titre">Qui écrit ici ?</h2>
+        <p>Je m'appelle Marck-Land Ahouansou. J'écris sur la société, la politique, mon parcours et les idées qui me font réfléchir, et parfois sur ce que les chiffres racontent.</p>
+        <a href="a-propos.html">En savoir plus →</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap"><span>© <span id="year">2026</span> Marck-Land Ahouansou · Québec</span><span>Les opinions exprimées ici sont personnelles.</span></div>
+</footer>
+
+<script src="assets/vendor/supabase.js"></script>
+<script src="assets/vendor/purify.min.js"></script>
+<script src="assets/common.js"></script>
+<script>
+(async function () {
+  const une = document.getElementById('une');
+  const derniers = document.getElementById('derniers');
+  const cats = document.getElementById('categories');
+
+  const [arts, categories] = await Promise.all([
+    db.from('articles').select(ARTICLE_FIELDS).order('published_at', { ascending: false }).limit(7),
+    db.from('categories').select('name,slug,description').order('position')
+  ]);
+
+  if (categories.data) {
+    cats.replaceChildren(...categories.data.map(c =>
+      h('a', { class: 'cat-card', href: categoryUrl(c.slug) }, h('b', { text: c.name }), c.description ? h('span', { text: c.description }) : null)));
+  }
+
+  if (arts.error) {
+    showError(une, 'Impossible de charger les articles pour le moment. Réessaie dans quelques instants.');
+    derniers.replaceChildren();
+    return;
+  }
+  const list = arts.data || [];
+  if (!list.length) {
+    une.replaceChildren(h('div', { class: 'hero-text' },
+      h('p', { class: 'kicker', text: 'Bienvenue' }),
+      h('h1', { text: 'Le premier article arrive bientôt.' }),
+      h('p', { class: 'lede', text: 'Reviens dans quelques jours, ou suis-moi sur LinkedIn pour être averti.' })));
+    derniers.replaceChildren(h('p', { class: 'notice', text: 'Aucun article publié pour l’instant.' }));
+    return;
+  }
+
+  const a = list[0];
+  une.replaceChildren(
+    h('div', { class: 'hero-text' },
+      h('p', { class: 'kicker', text: 'À la une' + (a.category ? ' · ' + a.category.name : '') }),
+      h('h1', {}, h('a', { href: articleUrl(a.slug), text: a.title })),
+      a.lede ? h('p', { class: 'lede', text: a.lede }) : null,
+      h('p', { class: 'meta', style: { margin: 0 }, text: 'Publié le ' + fmtDateTime(a.published_at) + ' · ' + readMinutes(a.content) + ' min de lecture · ' + plural(a.views, 'vue', 'vues') }),
+      h('div', {}, h('a', { class: 'btn', href: articleUrl(a.slug) }, 'Lire l’article →'))
+    ),
+    a.cover_url
+      ? h('a', { class: 'hero-media', href: articleUrl(a.slug), 'aria-hidden': 'true', tabindex: '-1', style: { backgroundImage: 'url("' + encodeURI(a.cover_url) + '")' } })
+      : h('div', { class: 'hero-media placeholder', 'aria-hidden': 'true' }, h('span', { text: '«' }))
+  );
+
+  const rest = list.slice(1);
+  derniers.replaceChildren(...(rest.length ? rest.map(x => articleCard(x, { cover: true })) : [h('p', { class: 'notice', text: 'D’autres articles arrivent bientôt.' })]));
+})();
+</script>
+</body>
+</html>

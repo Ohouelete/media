@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Articles — Marck-Land Ahouansou</title>
+<meta name="description" content="Tous les articles de Marck-Land Ahouansou, par catégorie, avec recherche.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2316191D'/%3E%3Ctext x='16' y='22' font-family='Georgia' font-size='17' font-weight='700' fill='%23F7F5F0' text-anchor='middle'%3EM%3C/text%3E%3Ccircle cx='25' cy='21' r='2.2' fill='%237EE0B5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="index.html"><b>Marck-Land Ahouansou</b><i aria-hidden="true"></i></a>
+    <nav class="nav" aria-label="Navigation principale">
+      <a href="index.html" data-page="index.html">Accueil</a>
+      <a href="articles.html" data-page="articles.html">Articles</a>
+      <a href="a-propos.html" data-page="a-propos.html">À propos</a>
+      <a href="https://ohouelete.github.io">Portfolio ↗</a>
+    </nav>
+  </div>
+</header>
+
+<main class="narrow" style="max-width:1000px;padding-top:52px;padding-bottom:96px;display:flex;flex-direction:column;gap:30px">
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <h1 class="page-title">Tous les articles</h1>
+    <p style="margin:0;font-size:19px;color:var(--soft)">Cherche un sujet ou filtre par catégorie.</p>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:14px">
+    <label for="recherche" class="sans" style="font-size:14px;font-weight:600">Rechercher</label>
+    <div class="search">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5F6670" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+      <input id="recherche" type="search" placeholder="Un mot, un titre, un thème…" autocomplete="off">
+    </div>
+    <div id="chips" class="chips" role="group" aria-label="Filtrer par catégorie"></div>
+  </div>
+
+  <p id="compte" class="meta" style="margin:0" aria-live="polite"></p>
+  <div id="liste" class="rows"></div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap"><span>© <span id="year">2026</span> Marck-Land Ahouansou · Québec</span><span>Les opinions exprimées ici sont personnelles.</span></div>
+</footer>
+
+<script src="assets/vendor/supabase.js"></script>
+<script src="assets/vendor/purify.min.js"></script>
+<script src="assets/common.js"></script>
+<script>
+(async function () {
+  const params = new URLSearchParams(location.search);
+  const state = { cat: params.get('cat') || '', q: params.get('q') || '' };
+  const input = document.getElementById('recherche');
+  const chips = document.getElementById('chips');
+  const liste = document.getElementById('liste');
+  const compte = document.getElementById('compte');
+  input.value = state.q;
+  if (location.hash === '#recherche') input.focus();
+
+  const { data: categories } = await db.from('categories').select('id,name,slug').order('position');
+  const cats = categories || [];
+  if (state.cat && !cats.some(c => c.slug === state.cat)) state.cat = '';
+
+  function renderChips() {
+    const all = [{ name: 'Toutes', slug: '' }].concat(cats);
+    chips.replaceChildren(...all.map(c => h('button', {
+      type: 'button', class: 'chip', 'aria-pressed': String(state.cat === c.slug),
+      onclick: () => { state.cat = c.slug; renderChips(); load(); }
+    }, c.name)));
+  }
+
+  function syncUrl() {
+    const p = new URLSearchParams();
+    if (state.cat) p.set('cat', state.cat);
+    if (state.q.trim()) p.set('q', state.q.trim());
+    history.replaceState(null, '', 'articles.html' + (p.toString() ? '?' + p : ''));
+  }
+
+  let ticket = 0;
+  async function load() {
+    syncUrl();
+    const mine = ++ticket;
+    compte.textContent = 'Chargement…';
+    const q = state.q.trim();
+    let query = q ? db.rpc('search_articles', { q }).select(ARTICLE_FIELDS) : db.from('articles').select(ARTICLE_FIELDS);
+    if (state.cat) {
+      const c = cats.find(x => x.slug === state.cat);
+      if (c) query = query.eq('category_id', c.id);
+    }
+    query = query.order('published_at', { ascending: false });
+    const { data, error } = await query;
+    if (mine !== ticket) return;
+    if (error) { compte.textContent = ''; showError(liste, 'Impossible de charger les articles pour le moment.'); return; }
+    const rows = data || [];
+    compte.textContent = plural(rows.length, 'article', 'articles');
+    if (!rows.length) {
+      liste.replaceChildren(h('div', { class: 'notice', style: { marginTop: '16px', textAlign: 'center' },
+        text: q || state.cat ? 'Aucun article ne correspond. Essaie un autre mot ou une autre catégorie.' : 'Aucun article publié pour l’instant.' }));
+      return;
+    }
+    liste.replaceChildren(...rows.map(a => h('a', { class: 'row', href: articleUrl(a.slug) },
+      h('div', { class: 'row-side' },
+        a.category ? h('span', { class: 'kicker', text: a.category.name }) : null,
+        h('span', { class: 'meta', style: { fontSize: '12px' }, text: fmtDate(a.published_at) })),
+      h('div', { class: 'row-main' },
+        h('h3', { text: a.title }),
+        a.lede ? h('p', { text: a.lede }) : null,
+        h('span', { class: 'meta', style: { fontSize: '12px' }, text: readMinutes(a.content) + ' min de lecture · ' + plural(a.views, 'vue', 'vues') + ' · ' + plural(commentCount(a), 'commentaire', 'commentaires') })))));
+  }
+
+  let timer;
+  input.addEventListener('input', () => { state.q = input.value; clearTimeout(timer); timer = setTimeout(load, 250); });
+  renderChips();
+  load();
+})();
+</script>
+</body>
+</html>
