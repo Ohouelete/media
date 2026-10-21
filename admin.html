@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/vendor/quill.snow.css">
-<link rel="stylesheet" href="assets/style.css?v=2">
+<link rel="stylesheet" href="assets/style.css?v=3">
 <style>
 body{background:#F1EEE7;font-family:var(--sans);font-size:15px;line-height:1.5}
 .topbar{background:var(--ink);color:var(--bg)}
@@ -58,6 +58,15 @@ td.title{font-family:var(--serif);font-size:17px;font-weight:600}
 .login{max-width:420px;margin:10vh auto;padding:0 24px}
 .word{display:inline-flex;align-items:center;gap:6px;padding:6px 6px 6px 12px;border-radius:999px;background:#fff;border:1px solid var(--line2)}
 .word button{width:30px;height:30px;border-radius:50%;border:0;background:#F1EEE7;cursor:pointer}
+.editor-wrap{position:relative}
+.img-bar{position:absolute;right:12px;z-index:5;display:flex;gap:6px;padding:6px;background:#fff;border:1px solid var(--line2);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.12)}
+.table-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px;background:#FBFAF7;border:1px solid var(--line2);border-radius:10px}
+.ql-snow .ql-toolbar button.ql-caption,.ql-snow .ql-toolbar button.ql-table,.ql-snow.ql-toolbar button.ql-caption,.ql-snow.ql-toolbar button.ql-table{width:auto;padding:3px 8px;font:500 13px var(--sans);color:#444}
+.ql-snow.ql-toolbar button.ql-divider{font:600 16px var(--sans);color:#444}
+.ql-editor hr{border:0;height:1px;background:var(--line2);margin:1.6em auto;width:40%}
+.ql-editor table{border-collapse:collapse;width:100%}.ql-editor td{border:1px solid var(--line2);padding:6px 10px}
+.ql-editor img{cursor:pointer}
+.ql-editor iframe.ql-video{width:100%;aspect-ratio:16/9;height:auto}
 .cat-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid #ECE8DF}
 .cat-row .f{flex:1 1 200px;width:auto}
 </style>
@@ -101,6 +110,7 @@ td.title{font-family:var(--serif);font-size:17px;font-weight:600}
       <button type="button" data-tab="articles">Mes articles <span class="count" id="n-art"></span></button>
       <button type="button" data-tab="editeur">+ Nouvel article</button>
       <button type="button" data-tab="commentaires">Commentaires <span class="count" id="n-com"></span></button>
+      <button type="button" data-tab="abonnes">Abonnés</button>
       <button type="button" data-tab="categories">Catégories</button>
       <button type="button" data-tab="mots">Mots filtrés</button>
     </nav>
@@ -111,7 +121,7 @@ td.title{font-family:var(--serif);font-size:17px;font-weight:600}
 <script src="assets/vendor/supabase.js"></script>
 <script src="assets/vendor/purify.min.js"></script>
 <script src="assets/vendor/quill.js"></script>
-<script src="assets/common.js?v=2"></script>
-<script src="assets/admin.js?v=2"></script>
+<script src="assets/common.js?v=3"></script>
+<script src="assets/admin.js?v=3"></script>
 </body>
 </html>

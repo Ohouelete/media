@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Abonnement — Marck-Land Ahouansou</title>
+<meta name="description" content="Recevoir les nouveaux articles de Marck-Land Ahouansou par courriel.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2316191D'/%3E%3Ctext x='16' y='22' font-family='Georgia' font-size='17' font-weight='700' fill='%23F7F5F0' text-anchor='middle'%3EM%3C/text%3E%3Ccircle cx='25' cy='21' r='2.2' fill='%237EE0B5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css?v=3">
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="index.html"><b>Marck-Land Ahouansou</b><i aria-hidden="true"></i></a>
+    <nav class="nav" aria-label="Navigation principale">
+      <a href="index.html" data-page="index.html">Accueil</a>
+      <a href="articles.html" data-page="articles.html">Articles</a>
+      <a href="a-propos.html" data-page="a-propos.html">À propos</a>
+      <a href="abonnement.html" data-page="abonnement.html">S'abonner</a>
+      <a href="https://marckland.com">Portfolio ↗</a>
+    </nav>
+  </div>
+</header>
+
+<main class="narrow article" id="abonnement" style="padding-bottom:80px">
+  <h1>Abonnement</h1>
+  <div id="etat"></div>
+  <div id="formulaire"></div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap"><span>© <span id="year">2026</span> Marck-Land Ahouansou · Québec</span><span>Les opinions exprimées ici sont personnelles.</span></div>
+</footer>
+<script src="assets/vendor/supabase.js"></script>
+<script src="assets/vendor/purify.min.js"></script>
+<script src="assets/common.js?v=3"></script>
+<script>
+(async function () {
+  const p = new URLSearchParams(location.search);
+  const etat = document.getElementById('etat');
+  const box = document.getElementById('formulaire');
+  const note = (title, text, ok) => etat.replaceChildren(h('div', { class: 'notice', role: 'status', style: { borderStyle: 'solid', borderColor: ok ? '#C4E2D3' : 'var(--danger-line)', background: ok ? 'var(--accent-tint)' : '#FBEDEA' } },
+    h('p', { style: { margin: '0 0 4px', fontWeight: 600, fontFamily: 'var(--sans)' }, text: title }), h('p', { style: { margin: 0 }, text: text })));
+
+  if (p.get('confirmer')) {
+    note('Confirmation…', 'Un instant.', true);
+    const r = await newsletter('confirm', { token: p.get('confirmer') });
+    if (r.error) note('Lien expiré', r.error, false);
+    else { note('C\u2019est confirmé, merci !', 'Tu recevras un courriel à chaque nouvel article.', true); box.replaceChildren(h('a', { class: 'btn', href: 'index.html' }, 'Lire les articles')); }
+    history.replaceState(null, '', 'abonnement.html');
+    return;
+  }
+  if (p.get('desabonner')) {
+    note('Désabonnement…', 'Un instant.', true);
+    const r = await newsletter('unsubscribe', { token: p.get('desabonner') });
+    if (r.error) note('Lien invalide', r.error, false);
+    else note('Tu es désabonné.', 'Tu ne recevras plus de courriels. Tu peux te réabonner quand tu veux ci-dessous.', true);
+    history.replaceState(null, '', 'abonnement.html');
+  }
+  box.replaceChildren(subscribeBox());
+})();
+</script>
+</body>
+</html>
