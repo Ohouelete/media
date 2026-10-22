@@ -8,7 +8,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2316191D'/%3E%3Ctext x='16' y='22' font-family='Georgia' font-size='17' font-weight='700' fill='%23F7F5F0' text-anchor='middle'%3EM%3C/text%3E%3Ccircle cx='25' cy='21' r='2.2' fill='%237EE0B5'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=8">
+<link rel="stylesheet" href="assets/style.css?v=9">
 </head>
 <body>
 <header class="site-header">
@@ -67,10 +67,11 @@
 
 <script src="assets/vendor/supabase.js"></script>
 <script src="assets/vendor/purify.min.js"></script>
-<script src="assets/common.js?v=8"></script>
+<script src="assets/common.js?v=9"></script>
 <script>
 (async function () {
-  const slug = new URLSearchParams(location.search).get('a') || '';
+  const fromPath = location.pathname.match(/\/a\/([^/]+)\/?$/);
+  const slug = new URLSearchParams(location.search).get('a') || (fromPath ? decodeURIComponent(fromPath[1]) : '');
   const box = document.getElementById('article');
 
   const { data: a, error } = slug
@@ -105,7 +106,7 @@
 
   let nbCom = commentCount(a);
   const metaCom = h('span', { text: plural(nbCom, 'commentaire', 'commentaires') });
-  const pageUrl = location.href.split('#')[0];
+  const pageUrl = 'https://blog.marckland.com/a/' + encodeURIComponent(a.slug) + '/';
   const enc = encodeURIComponent(pageUrl), encT = encodeURIComponent(a.title);
   const ICONS = {
     linkedin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#0A66C2" d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0z"/></svg>',
