@@ -36,7 +36,7 @@ function slugify(s) {
   return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
 }
-function articleUrl(slug) { return 'article.html?a=' + encodeURIComponent(slug); }
+function articleUrl(slug) { return '/a/' + encodeURIComponent(slug) + '/'; }
 function categoryUrl(slug) { return 'articles.html?cat=' + encodeURIComponent(slug); }
 
 // Petit constructeur d'éléments sûr (le texte passe toujours par textContent).
