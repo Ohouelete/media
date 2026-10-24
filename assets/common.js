@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Bandeau d'abonnement en bas de page (sauf pages où il ferait doublon).
   const page = location.pathname.split('/').pop() || 'index.html';
   const footer = document.querySelector('.site-footer');
-  if (footer && !['abonnement.html', 'admin.html', 'article.html'].includes(page)) {
+  if (footer && !document.getElementById('abo') && !location.pathname.startsWith('/a/') && !['abonnement.html', 'admin.html', 'article.html'].includes(page)) {
     const band = h('section', { class: 'sub-band', 'aria-label': 'Abonnement' },
       h('div', { class: 'wrap' }, subscribeBox({ dark: true })));
     footer.before(band);
