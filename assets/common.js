@@ -152,3 +152,40 @@ function subscribeBox(opts) {
   });
   return form;
 }
+
+// ----- Formulaire « Écris-moi » -----
+function contactBox(opts) {
+  const o = opts || {};
+  const uid = Math.random().toString(36).slice(2, 7);
+  const name = h('input', { class: 'field', id: 'ct-nom-' + uid, type: 'text', maxlength: '80', autocomplete: 'name', required: true, placeholder: 'Prénom ou pseudonyme' });
+  const email = h('input', { class: 'field', id: 'ct-mail-' + uid, type: 'email', autocomplete: 'email', required: true, placeholder: 'ton.courriel@exemple.com' });
+  const text = h('textarea', { class: 'field', id: 'ct-msg-' + uid, maxlength: '5000', required: true, rows: '5', placeholder: 'Ton message…' });
+  const trap = h('input', { type: 'text', name: 'website', tabindex: '-1', autocomplete: 'off' });
+  const msg = h('small', { role: 'status', text: 'Je te réponds par courriel. Ton adresse n’est jamais publiée.' });
+  const btn = h('button', { class: 'btn', type: 'submit' }, 'Envoyer le message');
+  const form = h('form', { class: 'form contact-form', novalidate: true },
+    h('div', { class: 'contact-row' },
+      h('div', { class: 'stack-sm' }, h('label', { for: name.id, text: 'Ton nom' }), name),
+      h('div', { class: 'stack-sm' }, h('label', { for: email.id, text: 'Ton courriel' }), email)),
+    h('label', { for: text.id, text: 'Ton message' }), text,
+    h('div', { class: 'hp', 'aria-hidden': 'true' }, trap),
+    h('div', { class: 'form-foot' }, msg, btn));
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const v = { name: name.value.trim(), email: email.value.trim(), message: text.value.trim(), website: trap.value };
+    const bad = (t, el) => { msg.className = 'error'; msg.textContent = t; el.focus(); };
+    if (!v.name) return bad('Indique ton nom.', name);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.email)) return bad('Vérifie ton adresse courriel.', email);
+    if (v.message.length < 2) return bad('Écris ton message.', text);
+    btn.disabled = true; msg.className = ''; msg.textContent = 'Envoi…';
+    const r = await newsletter('contact', v);
+    btn.disabled = false;
+    if (r.error) { msg.className = 'error'; msg.textContent = r.error; return; }
+    text.value = '';
+    msg.className = 'ok-text'; msg.textContent = 'Merci ! Ton message est bien arrivé. Je te réponds dès que possible.';
+  });
+  return h('div', { class: 'contact' },
+    h('div', {}, h('h2', { text: o.title || 'Écris-moi' }),
+      h('p', { class: 'sub-lede', text: o.lede || 'Une question, une réaction à un article ou une idée de sujet ? Laisse-moi un message.' })),
+    form);
+}

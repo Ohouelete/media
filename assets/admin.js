@@ -62,10 +62,12 @@
     cats = data || [];
   }
   async function refreshCounts() {
-    const [a, c] = await Promise.all([
+    const [a, c, m] = await Promise.all([
       db.from('articles').select('id', { count: 'exact', head: true }),
-      db.from('comments').select('id', { count: 'exact', head: true })
+      db.from('comments').select('id', { count: 'exact', head: true }),
+      db.from('messages').select('id', { count: 'exact', head: true }).eq('is_read', false)
     ]);
+    $('n-msg').textContent = m.count ? '(' + m.count + ' nouveau' + (m.count > 1 ? 'x' : '') + ')' : '';
     $('n-art').textContent = a.count != null ? '(' + a.count + ')' : '';
     $('n-com').textContent = c.count != null ? '(' + c.count + ')' : '';
   }
@@ -79,7 +81,7 @@
       if (b.dataset.tab === active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
     history.replaceState(null, '', '#' + tab + (arg ? '=' + arg : ''));
-    ({ articles: showArticles, editeur: showEditor, commentaires: showComments, abonnes: showSubscribers, categories: showCategories, mots: showWords })[tab](arg);
+    ({ articles: showArticles, editeur: showEditor, commentaires: showComments, messages: showMessages, abonnes: showSubscribers, categories: showCategories, mots: showWords })[tab](arg);
   }
   document.querySelectorAll('.side button').forEach(b => b.addEventListener('click', () => go(b.dataset.tab)));
   window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
@@ -429,6 +431,30 @@
   }
 
   // ---------- Commentaires ----------
+  async function showMessages() {
+    panel.replaceChildren(h('h1', { text: 'Messages' }), h('p', { class: 'hint', text: 'Chargement…' }));
+    const { data, error } = await db.from('messages').select('id,name,email,body,is_read,created_at').order('created_at', { ascending: false });
+    if (error) { panel.append(h('div', { class: 'notice', text: errMsg(error) })); return; }
+    const rows = data || [];
+    const unread = rows.filter(r => !r.is_read).map(r => r.id);
+    panel.replaceChildren(h('h1', { text: 'Messages' }),
+      h('p', { class: 'hint', style: { marginBottom: '16px' }, text: 'Messages reçus par le formulaire « Écris-moi » de l’accueil. Tu reçois aussi une alerte dans Gmail pour chacun.' }),
+      rows.length ? h('div', { class: 'stack' }, rows.map(r => h('div', { class: 'box', style: { borderColor: r.is_read ? '' : 'var(--accent)' } },
+        h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '6px 12px', alignItems: 'baseline', marginBottom: '8px' } },
+          h('b', { text: r.name }), h('span', { class: 'hint', text: r.email }),
+          !r.is_read ? h('span', { class: 'pill live', text: 'Nouveau' }) : null,
+          h('span', { class: 'hint', style: { marginLeft: 'auto' }, text: fmtDateTime(r.created_at) })),
+        h('p', { style: { margin: '0 0 12px', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'var(--serif)', fontSize: '17px' }, text: r.body }),
+        h('div', { class: 'actions' },
+          h('a', { class: 'btn btn-sm', href: 'mailto:' + encodeURIComponent(r.email) + '?subject=' + encodeURIComponent('Re : ton message sur mon blog') }, 'Répondre'),
+          confirmBtn('Supprimer', async () => {
+            const { error: e } = await db.from('messages').delete().eq('id', r.id);
+            if (e) toast(errMsg(e), true); else { toast('Message supprimé.'); showMessages(); refreshCounts(); }
+          })))))
+        : h('div', { class: 'notice', text: 'Aucun message pour l’instant.' }));
+    if (unread.length) { await db.from('messages').update({ is_read: true }).in('id', unread); refreshCounts(); }
+  }
+
   async function showComments() {
     panel.replaceChildren(h('h1', { text: 'Commentaires' }), h('p', { class: 'hint', text: 'Chargement…' }));
     const { data, error } = await db.from('comments').select('id,author,body,created_at,article:articles(title,slug)').order('created_at', { ascending: false }).limit(200);
@@ -503,7 +529,7 @@
   async function enterApp() {
     showView('app');
     refreshCounts();
-    const m = location.hash.match(/^#(articles|editeur|commentaires|abonnes|categories|mots)(?:=(\d+))?/);
+    const m = location.hash.match(/^#(articles|editeur|commentaires|messages|abonnes|categories|mots)(?:=(\d+))?/);
     go(m ? m[1] : 'articles', m && m[2] ? Number(m[2]) : undefined);
   }
 

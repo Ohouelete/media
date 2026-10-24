@@ -187,3 +187,11 @@ textarea.field{resize:vertical;min-height:120px;line-height:1.5}
 .stack-sm{display:flex;flex-direction:column;gap:12px}
 .com-qui{font-size:15px;color:var(--soft)}
 .com-qui button{background:none;border:0;padding:0;font:inherit;color:var(--accent);text-decoration:underline;cursor:pointer}
+/* --- Formulaire Écris-moi --- */
+.contact{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.contact h2{margin:0;font-size:27px;line-height:1.2}
+.contact .sub-lede{margin:6px 0 0;color:var(--soft);font-size:16px}
+.contact-row{display:flex;flex-wrap:wrap;gap:12px}
+.contact-row > div{flex:1 1 220px;min-width:0}
+.contact textarea{resize:vertical;min-height:130px}
+.ok-text{color:var(--accent-dark)}
